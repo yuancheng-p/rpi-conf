@@ -3,11 +3,12 @@ reference: https://github.com/hjwp/book-example/blob/master/deploy_tools/fabfile
 """
 
 import os
-import random
 
-from fabric.contrib.files import append, exists, sed
-from fabric.api import env, local, run, put
+from fabric.contrib.files import exists
+from fabric.api import run, put
 
+
+__all__ = ['config_hotspot', 'install_commons', 'deploy_edupi']
 
 REPO_URL = 'https://github.com/yuancheng2013/edupi.git'
 
@@ -18,55 +19,6 @@ EDUPI_SITE_NAME = 'edupi.fondationorange.org'
 RASP_USER_NAME = 'pi'
 
 CONFIG_TEMPLATES_FOLDER = 'sysconf'
-
-
-def config_hotspot():
-    run('sudo apt-get update')
-    run('sudo apt-get install -y hostapd dnsmasq')
-    config_files = [
-        '/etc/network/interfaces',
-        '/etc/dnsmasq.conf',
-        '/etc/hostapd/hostapd.conf.orig',
-        '/etc/rc.local',
-    ]
-
-    list(map(_send_file, config_files))
-    run('sudo reboot')
-
-
-def install_commons():
-    """
-    """
-    run('sudo apt-get update')
-    run('sudo apt-get install -y nginx')
-    run('sudo apt-get install -y python3-pip')
-    run('sudo apt-get install upstart')  # this will prompt and wait for confirm
-    run('sudo apt-get install -y libmagickwand-dev')
-    run('sudo pip-3.2 install virtualenv')
-
-    # install nodejs, bower
-    nodejs_path = '/tmp/node_latest_armhf.deb'
-    if not exists(nodejs_path):
-        run('wget http://node-arm.herokuapp.com/node_latest_armhf.deb --directory-prefix=/tmp/')
-
-    run('sudo dpkg -i %s' % nodejs_path)
-    run('curl -L https://www.npmjs.com/install.sh | sudo sh')
-    run('sudo npm install -g bower')
-
-
-def deploy_edupi():
-    nginx_conf = '/etc/nginx/sites-enabled/%s' % EDUPI_SITE_NAME
-    gunicorn_conf = '/etc/init/gunicorn-edupi.fondationorange.org.conf'
-
-    _send_file(nginx_conf)
-    _send_file(gunicorn_conf)
-    site_folder = '/home/%s/sites/%s' % (RASP_USER_NAME, EDUPI_SITE_NAME)
-    source_folder = os.path.join(site_folder, SOURCE_DIR_NAME)
-    _create_directory_structure_if_necessary(site_folder)
-    _get_latest_source(source_folder)
-    _update_virtualenv(source_folder)
-    _update_static_files(source_folder)
-    _update_database(source_folder)
 
 
 def _send_file(abs_path, use_sudo=True):
@@ -91,37 +43,92 @@ def _get_config_file(path):
     return f
 
 
-def _create_directory_structure_if_necessary(site_folder):
-    for subfolder in ('database', 'static', 'virtualenv', SOURCE_DIR_NAME):
-        run('mkdir -p %s/%s' % (site_folder, subfolder))
+class EdupiDeployManager():
+    def __init__(self):
+        self.site_folder = '/home/%s/sites/%s' % (RASP_USER_NAME, EDUPI_SITE_NAME)
+        self.source_folder = os.path.join(self.site_folder, SOURCE_DIR_NAME)
+
+    def deploy(self, commit):
+        # Nginx conf
+        _send_file('/etc/nginx/sites-enabled/%s' % EDUPI_SITE_NAME)
+        # Gunicorn conf
+        _send_file('/etc/init/gunicorn-edupi.fondationorange.org.conf')
+
+        self._create_directory_structure_if_necessary(self.site_folder)
+        self._get_source(self.source_folder, commit)
+        self._update_virtualenv(self.source_folder)
+        self._update_static_files(self.source_folder)
+        self._update_database(self.source_folder)
+
+    @staticmethod
+    def _create_directory_structure_if_necessary(site_folder):
+        for subfolder in ('database', 'static', 'virtualenv', SOURCE_DIR_NAME):
+            run('mkdir -p %s/%s' % (site_folder, subfolder))
+
+    @staticmethod
+    def _get_source(source_folder, commit):
+        if exists(source_folder + '/.git'):
+            run('cd %s && git fetch' % (source_folder,))
+        else:
+            run('git clone %s %s' % (REPO_URL, source_folder))
+
+        run('cd %s && git reset --hard %s' % (source_folder, commit))
+
+    @staticmethod
+    def _update_virtualenv(source_folder):
+        virtualenv_folder = source_folder + '/../virtualenv'
+        if not exists(virtualenv_folder + '/bin/pip3'):
+            run('virtualenv --python=python3 %s' % (virtualenv_folder,))
+        run('%s/bin/pip install -r %s/requirements.txt' % (
+            virtualenv_folder, source_folder
+        ))
+
+    @staticmethod
+    def _update_static_files(source_folder):
+        # install Front-End packages
+        # assume that node.js, npm, bower is installed
+        run('cd %s && ../virtualenv/bin/python3 manage.py bower install' % source_folder)
+        run('cd %s && ../virtualenv/bin/python3 manage.py collectstatic --noinput' % source_folder)
+
+    @staticmethod
+    def _update_database(source_folder):
+        run('cd %s && ../virtualenv/bin/python3 manage.py migrate --noinput' % (
+            source_folder,
+        ))
 
 
-def _get_latest_source(source_folder):
-    if exists(source_folder + '/.git'):
-        run('cd %s && git fetch' % (source_folder,))
-    else:
-        run('git clone %s %s' % (REPO_URL, source_folder))
-    current_commit = local("git log -n 1 --format=%H", capture=True)
-    run('cd %s && git reset --hard %s' % (source_folder, current_commit))
+def config_hotspot():
+    run('sudo apt-get update')
+    run('sudo apt-get install -y hostapd dnsmasq')
+    config_files = [
+        '/etc/network/interfaces',
+        '/etc/dnsmasq.conf',
+        '/etc/hostapd/hostapd.conf.orig',
+        '/etc/rc.local',
+    ]
+
+    list(map(_send_file, config_files))
+    run('sudo reboot')
 
 
-def _update_virtualenv(source_folder):
-    virtualenv_folder = source_folder + '/../virtualenv'
-    if not exists(virtualenv_folder + '/bin/pip3'):
-        run('virtualenv --python=python3 %s' % (virtualenv_folder,))
-    run('%s/bin/pip install -r %s/requirements.txt' % (
-        virtualenv_folder, source_folder
-    ))
+def install_commons():
+    run('sudo apt-get update')
+    run('sudo apt-get install -y nginx')
+    run('sudo apt-get install -y python3-pip')
+    run('sudo apt-get install upstart')  # this will prompt and wait for confirm
+    run('sudo apt-get install -y libmagickwand-dev')
+    run('sudo pip-3.2 install virtualenv')
+
+    # install nodejs, bower
+    nodejs_path = '/tmp/node_latest_armhf.deb'
+    if not exists(nodejs_path):
+        run('wget http://node-arm.herokuapp.com/node_latest_armhf.deb --directory-prefix=/tmp/')
+
+    run('sudo dpkg -i %s' % nodejs_path)
+    run('curl -L https://www.npmjs.com/install.sh | sudo sh')
+    run('sudo npm install -g bower')
 
 
-def _update_static_files(source_folder):
-    # install Front-End packages
-    # assume that node.js, npm, bower is installed
-    run('cd %s && ../virtualenv/bin/python3 manage.py bower install' % source_folder)
-    run('cd %s && ../virtualenv/bin/python3 manage.py collectstatic --noinput' % source_folder)
-
-
-def _update_database(source_folder):
-    run('cd %s && ../virtualenv/bin/python3 manage.py migrate --noinput' % (
-        source_folder,
-    ))
+def deploy_edupi(commit='master'):
+    manager = EdupiDeployManager()
+    manager.deploy(commit)
