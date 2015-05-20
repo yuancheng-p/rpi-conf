@@ -18,6 +18,8 @@ EDUPI_SITE_NAME = 'edupi.fondationorange.org'
 
 RASP_USER_NAME = 'pi'
 
+DEFAULT_PASSWORD = 'raspberry'
+
 CONFIG_TEMPLATES_FOLDER = 'sysconf'
 
 
@@ -95,6 +97,20 @@ class EdupiDeployManager():
         run('cd %s && ../virtualenv/bin/python3 manage.py migrate --noinput' % (
             source_folder,
         ))
+        # ensure that there is a default super user.
+        run("""
+cd %s &&
+echo "
+from django.contrib.auth.models import User
+from django.db.utils import IntegrityError
+try:
+    User.objects.create_superuser('%s', '', '%s')
+except IntegrityError as e:  # user exists
+    print(e)
+" |
+../virtualenv/bin/python3 manage.py shell
+            """
+            % (source_folder, RASP_USER_NAME, DEFAULT_PASSWORD))
 
 
 def config_hotspot():
