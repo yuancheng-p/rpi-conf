@@ -90,6 +90,9 @@ class EdupiDeployManager():
         # install Front-End packages
         # assume that node.js, npm, bower is installed
         run('cd %s && ../virtualenv/bin/python3 manage.py bower install' % source_folder)
+        # build the Front-End project
+        run('cd %s && r.js -o cntapp/static/cntapp/custom/src/app.build.js' % source_folder)
+        run('cd %s && r.js -o cntapp/static/cntapp/final/src/app.build.js' % source_folder)
         run('cd %s && ../virtualenv/bin/python3 manage.py collectstatic --noinput' % source_folder)
 
     @staticmethod
@@ -144,6 +147,7 @@ def install_commons():
     run('sudo dpkg -i %s' % nodejs_path)
     run('curl -L https://www.npmjs.com/install.sh | sudo sh')
     run('sudo npm install -g bower')
+    run('sudo npm install -g requirejs')
 
 
 def deploy_edupi(commit='master'):
