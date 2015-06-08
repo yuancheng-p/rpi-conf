@@ -119,6 +119,7 @@ def config_hotspot():
     config_files = [
         '/etc/network/interfaces',
         '/etc/dnsmasq.conf',
+        '/etc/resolvconf.conf',
         '/etc/hostapd/hostapd.conf.orig',
         '/etc/rc.local',
     ]
