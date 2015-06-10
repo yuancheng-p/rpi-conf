@@ -43,11 +43,17 @@ If you want to change this name, modify the `SSID_PREFIX` in `sysconf/etc/rc.loc
 
 ### Deploy Edupi
 
-
     $> fab deploy_edupi:host=pi@RASPBERRY_IP
 
+After that, you need to reboot your raspberry. EduPi will run automatically after boot.
+You can then use your browser to test it:
 
-### TODO
+    Normal user   : http://RASPBERRY_IP:8021/
+    Administrator : http://RASPBERRY_IP:8021/custom/
 
-    * Deploy Ka-lite
-    * Deploy Kiwix
+There is a default super user account created with this deployment script:
+
+    user: pi
+    password: raspberry
+
+This can be changed in the script `fabfile.py`.
