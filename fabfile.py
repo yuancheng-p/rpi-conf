@@ -8,13 +8,15 @@ from fabric.contrib.files import exists
 from fabric.api import run, put
 
 
-__all__ = ['config_hotspot', 'install_commons', 'deploy_edupi']
+__all__ = ['config_hotspot', 'install_commons', 'deploy_edupi', 'deploy_index_page']
 
 REPO_URL = 'https://github.com/yuancheng2013/edupi.git'
 
 SOURCE_DIR_NAME = 'edupi'
 
 EDUPI_SITE_NAME = 'edupi.fondationorange.org'
+
+PORTAL_SITE_NAME = 'fondationorange.org'
 
 RASP_USER_NAME = 'pi'
 
@@ -149,3 +151,23 @@ def install_commons():
 def deploy_edupi(commit='master'):
     manager = EdupiDeployManager()
     manager.deploy(commit)
+
+
+def deploy_index_page():
+    site_folder = '/home/%s/sites/www' % RASP_USER_NAME
+    repo_url = 'https://github.com/yuancheng2013/raspberry-index-page.git'
+    # Nginx conf
+    _send_file('/etc/nginx/sites-enabled/%s' % PORTAL_SITE_NAME)
+
+    # create site folder
+    run('mkdir -p %s' % site_folder)
+
+    # Get source
+    if exists(site_folder + '/.git'):
+        run('cd %s && git fetch' % site_folder)
+    else:
+        run('cd %s && rm -fr *' % site_folder)
+        run('git clone %s %s' % (repo_url, site_folder))
+
+    # force to use latest source on the master branch
+    run('cd %s && git reset --hard %s' % (site_folder, 'origin/master'))
