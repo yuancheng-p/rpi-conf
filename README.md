@@ -45,7 +45,19 @@ If you want to change this name, modify the `SSID_PREFIX` in `sysconf/etc/rc.loc
 
     $> fab deploy_edupi:host=pi@RASPBERRY_IP
 
-After that, you need to reboot your raspberry. EduPi will run automatically after boot.
+By default, the command above will install current master branch on your Raspberry,
+which is actually in development mode.
+
+If you want to install a production version (or any other version), you can get the commit SHA1 code
+from Github, and append to the command.
+
+For example, `912349ef198f8f95d9d75073da3ecf981a95c61c` is a commit for [`v1.1.0`](https://github.com/yuancheng2013/edupi/releases/tag/v1.1.0).
+You can install it by running:
+
+    $> fab deploy_edupi:host=pi@RASPBERRY_IP,commit=912349ef198f8f95d9d75073da3ecf981a95c61c
+
+
+After that, you need to reboot your raspberry for the first time. EduPi will run automatically after boot.
 You can then use your browser to test it:
 
     Normal user   : http://RASPBERRY_IP:8021/
