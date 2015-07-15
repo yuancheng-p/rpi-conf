@@ -9,6 +9,7 @@ server {
     }
 
     location /media {
+        access_log /var/log/nginx/edupi_media_access.log;
         alias /home/pi/sites/edupi.fondationorange.org/media;
     }
 
