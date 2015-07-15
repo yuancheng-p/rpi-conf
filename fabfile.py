@@ -25,12 +25,12 @@ DEFAULT_PASSWORD = 'raspberry'
 CONFIG_TEMPLATES_FOLDER = 'sysconf'
 
 
-def _send_file(abs_path, use_sudo=True):
+def _send_file(abs_path, use_sudo=True, mod='755'):
     """
     send local file to remote host
     """
     put(_get_config_file(abs_path), abs_path, use_sudo=use_sudo)
-    run('sudo chmod 755 %s' % abs_path)
+    run('sudo chmod %s %s' % (mod, abs_path))
     if use_sudo:
         run('sudo chown root:root %s' % abs_path)
 
@@ -55,8 +55,11 @@ class EdupiDeployManager():
     def deploy(self, commit):
         # Nginx conf
         _send_file('/etc/nginx/sites-enabled/%s' % EDUPI_SITE_NAME)
+        # Nginx logrotate config
+        _send_file('/etc/logrotate.d/nginx', mod='644')
         # Gunicorn conf
         _send_file('/etc/init/gunicorn-edupi.fondationorange.org.conf')
+
 
         self._create_directory_structure_if_necessary(self.site_folder)
         self._get_source(self.source_folder, commit)
