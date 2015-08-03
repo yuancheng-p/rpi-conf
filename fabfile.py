@@ -69,7 +69,7 @@ class EdupiDeployManager():
 
     @staticmethod
     def _create_directory_structure_if_necessary(site_folder):
-        for subfolder in ('database', 'static', 'virtualenv', SOURCE_DIR_NAME):
+        for subfolder in ('database', 'static', 'media', 'stats', 'virtualenv', SOURCE_DIR_NAME):
             run('mkdir -p %s/%s' % (site_folder, subfolder))
 
     @staticmethod
@@ -85,7 +85,7 @@ class EdupiDeployManager():
     def _update_virtualenv(source_folder):
         virtualenv_folder = source_folder + '/../virtualenv'
         if not exists(virtualenv_folder + '/bin/pip3'):
-            run('virtualenv --python=python3 %s' % (virtualenv_folder,))
+            run('virtualenv --python=python3.4 %s' % (virtualenv_folder,))
         run('%s/bin/pip install -r %s/requirements.txt' % (
             virtualenv_folder, source_folder
         ))
